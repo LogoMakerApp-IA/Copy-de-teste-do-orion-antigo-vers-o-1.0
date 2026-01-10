@@ -1,0 +1,21 @@
+{
+  "short_name": "ORION",
+  "name": "ORION - Personal Intelligence",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/6134/6134346.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/6134/6134346.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#09090b",
+  "background_color": "#09090b",
+  "orientation": "portrait"
+}

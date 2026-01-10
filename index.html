@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full overflow-hidden">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>ORION</title>
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#09090b" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            borderRadius: {
+              '4xl': '2rem',
+              '5xl': '2.5rem',
+            },
+            colors: {
+              material: {
+                surface: 'var(--md-sys-color-surface)',
+                'surface-container': 'var(--md-sys-color-surface-container)',
+                'surface-bright': 'var(--md-sys-color-surface-bright)',
+                primary: 'var(--md-sys-color-primary)',
+                'on-primary': 'var(--md-sys-color-on-primary)',
+                'primary-container': 'var(--md-sys-color-primary-container)',
+                'on-primary-container': 'var(--md-sys-color-on-primary-container)',
+                secondary: 'var(--md-sys-color-secondary)',
+                'on-secondary': 'var(--md-sys-color-on-secondary)',
+                'secondary-container': 'var(--md-sys-color-secondary-container)',
+                'on-secondary-container': 'var(--md-sys-color-on-secondary-container)',
+                outline: 'var(--md-sys-color-outline)',
+                'outline-variant': 'var(--md-sys-color-outline-variant)',
+                'on-surface': 'var(--md-sys-color-on-surface)',
+                'on-surface-variant': 'var(--md-sys-color-on-surface-variant)',
+              }
+            },
+            animation: {
+              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'fade-in': 'fadeIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+              'slide-up': 'slideUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+              'orb-breathe': 'orbBreathe 3s ease-in-out infinite',
+              'ripple': 'ripple 2s linear infinite',
+              'flow': 'flow 1.5s linear infinite',
+              'blink': 'blink 4s infinite',
+            },
+            keyframes: {
+              fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+              slideUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+              orbBreathe: {
+                '0%, 100%': { transform: 'scale(1)', opacity: '0.8', boxShadow: '0 0 30px var(--md-sys-color-primary-container)' },
+                '50%': { transform: 'scale(1.1)', opacity: '1', boxShadow: '0 0 60px var(--md-sys-color-primary)' },
+              },
+              ripple: { '0%': { transform: 'scale(1)', opacity: '0.4' }, '100%': { transform: 'scale(2.5)', opacity: '0' } },
+              flow: { '0%': { transform: 'translateX(-100%)' }, '100%': { transform: 'translateX(100%)' } },
+              blink: { '0%, 45%, 55%, 100%': { transform: 'scaleY(1)' }, '50%': { transform: 'scaleY(0.1)' } }
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      :root {
+        /* LIGHT MODE (Default) */
+        --md-sys-color-surface: #ffffff;
+        --md-sys-color-surface-container: #f4f4f5;
+        --md-sys-color-surface-bright: #fafafa;
+        --md-sys-color-on-surface: #09090b;
+        --md-sys-color-on-surface-variant: #52525b;
+        --md-sys-color-outline: #e4e4e7;
+        --md-sys-color-outline-variant: #d4d4d8;
+        --md-sys-color-primary: #18181b;
+        --md-sys-color-on-primary: #ffffff;
+        --orion-eye-color: #09090b;
+        --orion-eye-shadow: rgba(0, 0, 0, 0.1);
+      }
+
+      .dark {
+        /* DARK MODE */
+        --md-sys-color-surface: #09090b;
+        --md-sys-color-surface-container: #18181b;
+        --md-sys-color-surface-bright: #27272a;
+        --md-sys-color-on-surface: #f4f4f5;
+        --md-sys-color-on-surface-variant: #a1a1aa;
+        --md-sys-color-outline: #3f3f46;
+        --md-sys-color-outline-variant: #27272a;
+        --md-sys-color-primary: #ffffff;
+        --md-sys-color-on-primary: #000000;
+        --orion-eye-color: #ffffff;
+        --orion-eye-shadow: rgba(255, 255, 255, 0.4);
+      }
+
+      body { 
+        background-color: var(--md-sys-color-surface); 
+        color: var(--md-sys-color-on-surface); 
+        transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: var(--md-sys-color-outline-variant); border-radius: 10px; }
+      .markdown-body p { margin-bottom: 0.75rem; }
+      .markdown-body ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.75rem; }
+      
+      .intensity-low * { animation-duration: 0.1s !important; transition-duration: 0.1s !important; box-shadow: none !important; }
+      .intensity-high .animate-orb-breathe { animation-duration: 2s !important; }
+      .intensity-high .animate-slide-up { animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1) !important; }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react-markdown": "https://esm.sh/react-markdown@^10.1.0",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "uuid": "https://esm.sh/uuid@^13.0.0"
+  }
+}
+</script>
+</head>
+  <body class="h-full overflow-hidden">
+    <div id="root" class="h-full"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

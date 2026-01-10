@@ -1,0 +1,9 @@
+{
+  "name": "Copy of ORION - Personal Intelligence integrado ao deploy do google",
+  "description": "Uma IA pessoal humanizada, proativa e consciente do contexto, inspirada na fluidez natural e automação inteligente.",
+  "requestFramePermissions": [
+    "microphone",
+    "geolocation",
+    "camera"
+  ]
+}
