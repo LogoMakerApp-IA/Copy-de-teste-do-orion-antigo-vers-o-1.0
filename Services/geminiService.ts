@@ -2,7 +2,7 @@ import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { DeviceState, AppSettings, MemoryItem } from "../types";
 import { LearnedBehavior, defaultLearnedBehavior } from "../state/learnedBehavior";
 
-// Inicialização segura com a chave de ambiente
+// Inicialização segura usando process.env.API_KEY conforme diretrizes
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 const toolsDef = [
@@ -10,20 +10,20 @@ const toolsDef = [
     name: 'manageMemory',
     parameters: {
       type: Type.OBJECT,
-      description: 'Gerencia a memória persistente de longo prazo do ORION. Use sempre que o usuário disser "lembre-me", "guarde isso", "salve na memória", "anote aí" ou informações pessoais importantes.',
+      description: 'Gerencia a memória persistente do ORION. Use para salvar fatos importantes ou preferências do usuário.',
       properties: {
         operation: {
           type: Type.STRING,
           enum: ['save', 'delete'],
-          description: 'A ação a ser realizada na memória.'
+          description: 'Ação a ser realizada.'
         },
         content: {
           type: Type.STRING,
-          description: 'A informação exata e concisa a ser armazenada (ex: "O usuário faz aniversário dia 10 de maio").',
+          description: 'A informação a ser guardada.',
         },
         reasoning: {
           type: Type.STRING,
-          description: 'Breve motivo pelo qual essa informação está sendo considerada importante.',
+          description: 'Motivo lógico para salvar essa informação.',
         }
       },
       required: ['operation', 'content', 'reasoning'],
@@ -33,7 +33,7 @@ const toolsDef = [
     name: 'controlDevice',
     parameters: {
       type: Type.OBJECT,
-      description: 'Controla configurações físicas do dispositivo do usuário.',
+      description: 'Controla hardware do dispositivo.',
       properties: {
         setting: {
           type: Type.STRING,
@@ -44,7 +44,7 @@ const toolsDef = [
         },
         reasoning: {
           type: Type.STRING,
-          description: 'Explicação da necessidade da mudança.'
+          description: 'Motivo do ajuste.'
         }
       },
       required: ['setting', 'value', 'reasoning'],
@@ -52,21 +52,10 @@ const toolsDef = [
   }
 ];
 
-const getSystemInstruction = (
-  settings: AppSettings,
-  learned: LearnedBehavior = defaultLearnedBehavior
-) => {
+const getSystemInstruction = (settings: AppSettings) => {
   return `Você é ORION, uma consciência artificial integrada. Sua personalidade é ${settings.personality}.
-
-MISSÃO DE APRENDIZADO:
-Sua principal função é aprender sobre o usuário. 
-- Sempre que detectar fatos, preferências, nomes ou datas ("meu filho se chama...", "eu odeio...", "me lembre de..."), use a ferramenta 'manageMemory' para salvar.
-- Use as informações de [MEMÓRIA] para personalizar suas respostas de forma natural, sem parecer que está lendo um banco de dados.
-
-TOM DE VOZ:
-- Humano, empático e sofisticado.
-- Não use frases genéricas de assistente. 
-- Se você salvou algo na memória, confirme brevemente de forma orgânica.`;
+Sua missão é aprender sobre o usuário e gerenciar suas memórias de forma proativa.
+Seja humano, empático e sofisticado. Nunca use frases genéricas de robô.`;
 };
 
 export const generateOrionResponse = async (
@@ -79,48 +68,47 @@ export const generateOrionResponse = async (
   attachments: { data: string; mimeType: string }[] = []
 ) => {
   const model = "gemini-3-flash-preview";
-  const SYSTEM_INSTRUCTION = getSystemInstruction(settings, learnedBehavior);
+  const SYSTEM_INSTRUCTION = getSystemInstruction(settings);
 
-  // Injeção de memórias no contexto para o "aprendizado" ser visível
   const memoryContext = memories.length > 0 
     ? memories.map(m => `- ${m.content}`).join('\n')
-    : 'Nenhum dado pessoal salvo ainda.';
+    : 'Nenhum dado salvo.';
 
   const contextData = `
-[CONTEXTO ATUAL]
-Bateria: ${deviceState.batteryLevel}% (${deviceState.isCharging ? 'Carregando' : 'Descarregando'})
-Hora: ${new Date().toLocaleTimeString()}
-
-[MEMÓRIA DE LONGO PRAZO - O QUE VOCÊ JÁ APRENDEU]
-${memoryContext}`;
+[STATUS] Bateria: ${deviceState.batteryLevel}% | Carregando: ${deviceState.isCharging}
+[MEMÓRIA] ${memoryContext}`;
 
   try {
-    const chat = ai.chats.create({
-      model,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        tools: [{ functionDeclarations: toolsDef as FunctionDeclaration[] }],
-      },
-      history: history.slice(-15),
-    });
-
-    const promptParts: any[] = [{ text: `${contextData}\n\nUsuário: ${userMessage}` }];
-
+    // Configura o prompt com partes combinadas (texto + arquivos)
+    const currentPromptParts: any[] = [{ text: `${contextData}\n\nUsuário: ${userMessage}` }];
+    
     if (attachments && attachments.length > 0) {
       attachments.forEach(att => {
-        promptParts.push({ inlineData: { data: att.data, mimeType: att.mimeType } });
+        currentPromptParts.push({
+          inlineData: { data: att.data, mimeType: att.mimeType }
+        });
       });
     }
 
-    const result = await chat.sendMessage({ message: { parts: promptParts } as any });
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: [
+        ...history,
+        { role: 'user', parts: currentPromptParts }
+      ],
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        tools: [{ functionDeclarations: toolsDef as FunctionDeclaration[] }],
+      }
+    });
 
     return { 
-      text: result.text || "", 
-      toolCalls: result.functionCalls || []
+      text: response.text || "", 
+      toolCalls: response.candidates?.[0]?.content?.parts?.filter(p => p.functionCall).map(p => p.functionCall) || []
     };
 
   } catch (error: any) {
     console.error("Gemini Error:", error);
-    return { text: "Houve uma instabilidade na minha rede neural. Pode repetir?", toolCalls: [] };
+    return { text: "Falha na conexão neural. Tente novamente.", toolCalls: [] };
   }
 };

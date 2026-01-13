@@ -12,12 +12,10 @@ interface OrionEyesProps {
 type EyeState = 'awake' | 'tired' | 'sleeping' | 'blinking';
 
 const OrionEyes: React.FC<OrionEyesProps> = ({ status, isInteracting = false, chargingEvent = null, isBooting = false }) => {
-  // Inicializa como sleeping se estiver bootando, senão awake
   const [eyeState, setEyeState] = useState<EyeState>(isBooting ? 'sleeping' : 'awake');
   const [lookOffset, setLookOffset] = useState({ x: 0, y: 0 });
   
-  // Estado local para a animação de carregamento (específica do olho esquerdo)
-  // 'charging' = Verde pulsante, 'discharging' = Branco/Preto pulsante (normal)
+  // Estado local para a animação de carregamento
   const [batteryAnimState, setBatteryAnimState] = useState<'charging' | 'discharging' | null>(null);
 
   // Refs para controlar timers
@@ -40,7 +38,6 @@ const OrionEyes: React.FC<OrionEyesProps> = ({ status, isInteracting = false, ch
   // 0. Lógica de Animação de Bateria (Prioridade Visual Alta)
   useEffect(() => {
     if (chargingEvent) {
-      // Cancela timer anterior se houver mudança rápida
       if (batteryAnimTimerRef.current) clearTimeout(batteryAnimTimerRef.current);
 
       if (chargingEvent === 'connected') {
@@ -49,18 +46,17 @@ const OrionEyes: React.FC<OrionEyesProps> = ({ status, isInteracting = false, ch
         setBatteryAnimState('discharging');
       }
 
-      // Animação dura 2.5 segundos para dar tempo de apreciar o efeito
+      // Estendemos a animação para 3.5 segundos para garantir que o usuário perceba o fluxo
       batteryAnimTimerRef.current = setTimeout(() => {
         setBatteryAnimState(null);
-      }, 2500);
+      }, 3500);
     }
   }, [chargingEvent]);
 
-  // 1. Lógica Principal de Estado (State Machine Interna)
+  // 1. Lógica Principal de Estado
   useEffect(() => {
     if (isBooting) return;
 
-    // Se o status cognitivo não for IDLE, forçamos 'awake'
     if (status !== 'IDLE' || isInteracting) {
       if (stateTimerRef.current) clearTimeout(stateTimerRef.current);
       if (sequenceTimerRef.current) clearTimeout(sequenceTimerRef.current);
@@ -72,7 +68,6 @@ const OrionEyes: React.FC<OrionEyesProps> = ({ status, isInteracting = false, ch
       return;
     }
 
-    // Sequência de repouso apenas no IDLE
     if (eyeState === 'awake') {
       if (stateTimerRef.current) clearTimeout(stateTimerRef.current);
       stateTimerRef.current = setTimeout(() => {
@@ -103,7 +98,6 @@ const OrionEyes: React.FC<OrionEyesProps> = ({ status, isInteracting = false, ch
 
   // 2. Lógica de "Vida Artificial" (Movimentos e Piscar)
   useEffect(() => {
-    // Não anima movimentos aleatórios se estiver focado em uma tarefa cognitiva ou dormindo
     if (isBooting || eyeState === 'sleeping' || status === 'THINKING' || status === 'LISTENING' || status === 'ERROR') {
         if (lifeCycleRef.current) clearInterval(lifeCycleRef.current);
         return;
@@ -126,7 +120,6 @@ const OrionEyes: React.FC<OrionEyesProps> = ({ status, isInteracting = false, ch
       const randomAction = Math.random();
 
       if (randomAction < blinkChance) {
-        // --- PISCAR ---
         const currentState = eyeState === 'blinking' ? 'awake' : eyeState;
         setEyeState('blinking');
         const blinkDuration = eyeState === 'tired' ? 250 : 150;
@@ -136,9 +129,7 @@ const OrionEyes: React.FC<OrionEyesProps> = ({ status, isInteracting = false, ch
                 return currentState;
             });
         }, blinkDuration);
-
       } else if (randomAction < (blinkChance + lookChance)) {
-        // --- OLHAR EM VOLTA ---
         const range = eyeState === 'tired' ? 3 : 12; 
         const x = (Math.random() * range * 2) - range;
         const y = (Math.random() * range * 2) - range;
@@ -155,15 +146,11 @@ const OrionEyes: React.FC<OrionEyesProps> = ({ status, isInteracting = false, ch
     };
   }, [eyeState, status, isInteracting, isBooting]);
 
-
-  // --- ESTILOS VISUAIS ---
-
   const getEyeStyles = (index: number) => {
     const elastic = "cubic-bezier(0.34, 1.56, 0.64, 1)";
     const smooth = "cubic-bezier(0.4, 0, 0.2, 1)";
     const slowWake = "cubic-bezier(0.22, 1, 0.36, 1)"; 
     
-    // Define se estamos num estado cognitivo ativo
     const isCognitiveActive = status !== 'IDLE';
     const tx = isCognitiveActive ? 0 : lookOffset.x;
     const ty = isCognitiveActive ? 0 : lookOffset.y;
@@ -179,158 +166,124 @@ const OrionEyes: React.FC<OrionEyesProps> = ({ status, isInteracting = false, ch
         border-radius 0.4s ease, 
         opacity 0.5s ease,
         box-shadow 0.5s ease,
-        background-color 0.5s ease,
-        border-color 0.5s ease
+        background-color 0.5s ease
       `,
       backgroundColor: 'var(--orion-eye-color)',
       backgroundImage: 'none',
       animation: 'none',
-      border: '0px solid transparent'
+      position: 'relative' as const,
+      overflow: 'hidden' as const
     };
 
-    // Override para Animação de Bateria (Apenas Olho Esquerdo - Index 0)
-    let batteryOverride = {};
-    if (index === 0 && batteryAnimState) {
-        if (batteryAnimState === 'charging') {
-            batteryOverride = {
-                // "Energia Fluindo": Gradiente de Esmeralda Escuro -> Verde Neon Vibrante
-                backgroundImage: 'linear-gradient(135deg, #059669 0%, #4ade80 100%)', 
-                backgroundColor: 'transparent',
-                // Bloom Effect Duplo (Glow interno + Glow externo)
-                boxShadow: '0 0 35px #22c55e, inset 0 0 20px rgba(255,255,255,0.4)', 
-                // Respiração lenta e profunda (2s)
-                animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                // Borda sutil para definição
-                border: '1px solid rgba(134, 239, 172, 0.5)' 
+    // --- LOGICA DE BATERIA (VORTEX REACTOR) ---
+    if (batteryAnimState === 'charging') {
+        if (index === 0) { // Olho Esquerdo: O Reator Principal
+            return {
+                ...common,
+                height: '6rem',
+                width: '6rem',
+                borderRadius: '50%',
+                backgroundColor: '#064e3b',
+                boxShadow: '0 0 40px #10b981, inset 0 0 20px rgba(255,255,255,0.2)',
+                animation: 'reactor-breathe 2s ease-in-out infinite',
+                transform: 'scale(1.1)'
             };
-        } else if (batteryAnimState === 'discharging') {
-            batteryOverride = {
-                // Flash de Luz Branca (Corte de energia)
-                backgroundImage: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)',
-                backgroundColor: '#ffffff',
-                // Luz "Estourada"
-                boxShadow: '0 0 60px rgba(255, 255, 255, 1), 0 0 20px rgba(255, 255, 255, 0.8)', 
-                // Pulso frenético/glitch (0.15s)
-                animation: 'pulse 0.15s ease-in-out infinite',
-                border: '1px solid #ffffff'
+        } else { // Olho Direito: Ressonância Simpática
+            return {
+                ...common,
+                height: '5rem',
+                width: '5rem',
+                borderRadius: '1.25rem',
+                animation: 'sympathetic-glow 2s ease-in-out infinite',
+                backgroundColor: 'var(--orion-eye-color)',
             };
         }
     }
 
-    // --- ESTADOS COGNITIVOS (Prioridade Alta) ---
+    if (batteryAnimState === 'discharging') {
+        return {
+            ...common,
+            height: index === 0 ? '5rem' : '5rem',
+            width: index === 0 ? '5rem' : '5rem',
+            borderRadius: '1.25rem',
+            animation: 'disconnect-flash 0.8s ease-out forwards',
+        };
+    }
 
-    // 1. ERRO (Falha no sistema)
+    // --- ESTADOS COGNITIVOS ---
     if (status === 'ERROR') {
       return {
         ...common,
-        height: '4rem',
-        width: '4rem',
-        borderRadius: '0.5rem', // Quadrado arredondado
-        backgroundColor: '#ef4444', // Vermelho
-        opacity: 1,
-        transform: 'scale(1)',
+        height: '4rem', width: '4rem',
+        borderRadius: '0.5rem',
+        backgroundColor: '#ef4444',
         boxShadow: '0 0 30px rgba(239, 68, 68, 0.6)',
-        // Glitch effect (simulado com animação rápida se houvesse keyframes complexos, aqui usamos pulse rápido)
         animation: 'pulse 0.1s infinite', 
-        ...batteryOverride
       };
     }
 
-    // 2. LISTENING (Ouvindo/Atento)
     if (status === 'LISTENING') {
       return {
         ...common,
-        height: '6rem', // Bem aberto
-        width: '6rem',
+        height: '6rem', width: '6rem',
         borderRadius: '50%',
-        opacity: 1,
-        transform: 'scale(1.1)',
-        // Glow "auditivo"
         boxShadow: '0 0 40px var(--orion-eye-color)', 
         animation: 'orb-breathe 2s ease-in-out infinite',
-        ...batteryOverride
       };
     }
 
-    // 3. THINKING (Processando)
     if (status === 'THINKING') {
       return {
         ...common,
-        height: '5rem', 
-        width: '5rem',
+        height: '5rem', width: '5rem',
         borderRadius: '1.25rem',
-        opacity: 1,
         transform: 'scale(1.1) rotate(180deg)',
-        boxShadow: '0 0 30px var(--orion-eye-shadow)',
         animation: 'pulse 1s infinite'
       };
     }
 
-    // 4. RESPONDING (Falando/Digitando)
     if (status === 'RESPONDING') {
       return {
         ...common,
-        height: '4.5rem',
-        width: '6rem',
+        height: '4.5rem', width: '6rem',
         borderRadius: '1rem',
-        opacity: 1,
         transform: 'scale(1.05)',
-        boxShadow: '0 0 25px var(--orion-eye-shadow)',
-        ...batteryOverride
       };
     }
 
-    // --- ESTADOS DE REPOUSO (Prioridade Baixa) ---
+    // --- ESTADOS DE REPOUSO ---
     switch (eyeState) {
       case 'blinking':
         return {
           ...common,
-          height: '4px',
-          width: '5rem',
-          borderRadius: '2px',
-          opacity: 0.8,
+          height: '4px', width: '5rem',
+          borderRadius: '2px', opacity: 0.8,
           transform: `translate(${tx}px, ${ty}px)`,
           transition: 'all 0.1s ease-in',
-          boxShadow: 'none',
-          ...batteryOverride 
         };
-
       case 'tired':
         return {
           ...common,
-          height: '2rem', 
-          width: '5rem',
-          borderRadius: '0.75rem',
-          opacity: 0.7,
+          height: '2rem', width: '5rem',
+          borderRadius: '0.75rem', opacity: 0.7,
           transform: `translate(${tx}px, ${ty}px)`,
-          boxShadow: '0 0 10px var(--orion-eye-shadow)',
           transition: `height 1s ${smooth}, transform 1s ${smooth}`,
-          ...batteryOverride
         };
-
       case 'sleeping':
         return {
           ...common,
-          height: '2px', // Fechado
-          width: '3.5rem',
-          borderRadius: '2px',
-          opacity: isBooting ? 0 : 0.3, 
+          height: '2px', width: '3.5rem',
+          borderRadius: '2px', opacity: isBooting ? 0 : 0.3, 
           transform: 'translate(0, 10px)',
-          boxShadow: 'none',
           transition: `all 2s ease-in-out` 
         };
-
       case 'awake':
       default:
         return {
           ...common,
-          height: '5rem',
-          width: '5rem',
-          borderRadius: '1.25rem',
-          opacity: 0.95,
+          height: '5rem', width: '5rem',
+          borderRadius: '1.25rem', opacity: 0.95,
           transform: `translate(${tx}px, ${ty}px)`,
-          boxShadow: '0 0 20px var(--orion-eye-shadow)',
-          ...batteryOverride
         };
     }
   };
@@ -338,12 +291,25 @@ const OrionEyes: React.FC<OrionEyesProps> = ({ status, isInteracting = false, ch
   return (
     <div className="flex gap-6 items-center justify-center h-32 w-full">
       <div 
-        className="backdrop-blur-md"
-        style={getEyeStyles(0)} // Olho Esquerdo
-      />
+        className="backdrop-blur-md flex items-center justify-center"
+        style={getEyeStyles(0)}
+      >
+          {batteryAnimState === 'charging' && (
+              <div 
+                className="absolute inset-0 opacity-40"
+                style={{
+                    background: 'conic-gradient(from 0deg, transparent, #10b981, transparent)',
+                    animation: 'energy-vortex 1.5s linear infinite'
+                }}
+              />
+          )}
+          {batteryAnimState === 'charging' && (
+              <div className="w-4 h-4 rounded-full bg-white/30 blur-sm animate-pulse" />
+          )}
+      </div>
       <div 
         className="backdrop-blur-md"
-        style={getEyeStyles(1)} // Olho Direito
+        style={getEyeStyles(1)}
       />
     </div>
   );
