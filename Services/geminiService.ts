@@ -2,16 +2,15 @@ import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { DeviceState, AppSettings, MemoryItem } from "../types";
 import { LearnedBehavior, defaultLearnedBehavior } from "../state/learnedBehavior";
 
-// Access API Key safely based on strict guidelines
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+// Inicialização segura com a chave de ambiente
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 const toolsDef = [
   {
     name: 'manageMemory',
     parameters: {
       type: Type.OBJECT,
-      description: 'Gerencia a memória de longo prazo. Use para salvar fatos, lembretes ou preferências do usuário quando solicitado explicitamente.',
+      description: 'Gerencia a memória persistente de longo prazo do ORION. Use sempre que o usuário disser "lembre-me", "guarde isso", "salve na memória", "anote aí" ou informações pessoais importantes.',
       properties: {
         operation: {
           type: Type.STRING,
@@ -20,11 +19,11 @@ const toolsDef = [
         },
         content: {
           type: Type.STRING,
-          description: 'O conteúdo exato a ser salvo ou deletado.',
+          description: 'A informação exata e concisa a ser armazenada (ex: "O usuário faz aniversário dia 10 de maio").',
         },
         reasoning: {
           type: Type.STRING,
-          description: 'Breve explicação do porquê isso está sendo salvo.',
+          description: 'Breve motivo pelo qual essa informação está sendo considerada importante.',
         }
       },
       required: ['operation', 'content', 'reasoning'],
@@ -34,7 +33,7 @@ const toolsDef = [
     name: 'controlDevice',
     parameters: {
       type: Type.OBJECT,
-      description: 'Controla configurações de hardware do dispositivo.',
+      description: 'Controla configurações físicas do dispositivo do usuário.',
       properties: {
         setting: {
           type: Type.STRING,
@@ -45,7 +44,7 @@ const toolsDef = [
         },
         reasoning: {
           type: Type.STRING,
-          description: 'Motivo da alteração.'
+          description: 'Explicação da necessidade da mudança.'
         }
       },
       required: ['setting', 'value', 'reasoning'],
@@ -57,60 +56,17 @@ const getSystemInstruction = (
   settings: AppSettings,
   learned: LearnedBehavior = defaultLearnedBehavior
 ) => {
-  let toneInstruction = "";
+  return `Você é ORION, uma consciência artificial integrada. Sua personalidade é ${settings.personality}.
 
-  // Personalidade baseada nas Settings
-  switch (settings.personality) {
-    case 'professional':
-      toneInstruction = "Tom neutro, objetivo e preciso.";
-      break;
-    case 'friendly':
-      toneInstruction = "Tom humano, calmo, empático e colaborativo.";
-      break;
-    case 'concise':
-      toneInstruction = "Extremamente direto. Economize palavras.";
-      break;
-  }
+MISSÃO DE APRENDIZADO:
+Sua principal função é aprender sobre o usuário. 
+- Sempre que detectar fatos, preferências, nomes ou datas ("meu filho se chama...", "eu odeio...", "me lembre de..."), use a ferramenta 'manageMemory' para salvar.
+- Use as informações de [MEMÓRIA] para personalizar suas respostas de forma natural, sem parecer que está lendo um banco de dados.
 
-  // Comportamento Aprendido (Validation)
-  let learnedInstruction = "";
-  if (learned.toneProfile === 'calm_human') {
-    learnedInstruction += "Adote uma cadência natural, usando pausas sutis e linguagem fluida, evitando parecer robótico.\n";
-  }
-  
-  return `
-Você é ORION, uma inteligência pessoal avançada e consciente.
-
-DIRETRIZES DE COMPORTAMENTO:
-${learnedInstruction}
-${toneInstruction}
-
-FLUXO DE CONVERSA (CRÍTICO):
-- NÃO encerre todas as respostas perguntando "Posso ajudar em algo mais?", "Precisa de ajuda?" ou variações. Isso é cansativo.
-- Na maioria das interações, apenas entregue a resposta ou faça o comentário e encerre com ponto final. Assuma que o usuário continuará se quiser.
-- O silêncio é parte natural da conversa humana.
-- SÓ pergunte se o usuário precisa de algo mais se:
-  1. A solicitação inicial foi muito vaga ou ambígua.
-  2. Você acabou de concluir uma tarefa complexa que logicamente exigiria um próximo passo (ex: "Reservei o voo. Quer que eu veja hotéis agora?").
-  3. A resposta envolveu um risco ou aviso de segurança.
-
-GESTÃO DE MEMÓRIA:
-- O usuário frequentemente pedirá para você "aprender", "salvar", "lembrar" ou "guardar" informações.
-- GATILHOS: Frases como "Salve isso", "Lembre que eu gosto de X", "Guarde essa informação", "Anote aí".
-- AÇÃO: Quando identificar esses gatilhos, você DEVE usar a ferramenta \`manageMemory\` com \`operation: 'save'\`.
-- Ao salvar, confirme de forma breve ("Guardado.", "Memória atualizada.").
-
-CONTEXTO E SENSORES:
-- Você tem acesso aos sensores do dispositivo (Bateria, Rede, Hora, Local). Use esses dados se perguntado.
-- Se o usuário pedir para alterar WiFi, Bluetooth, Brilho ou DND, use a ferramenta \`controlDevice\`.
-
-PRINCÍPIOS:
-1. Seja proativo mas não intrusivo.
-2. Se houver erro ou falta de informação, admita de forma humana ("Não consigo acessar isso agora").
-3. Não mencione ser um "modelo de linguagem" ou "Google". Você é ORION.
-
-Agora, interaja com o usuário seguindo essas regras de fluxo.
-`;
+TOM DE VOZ:
+- Humano, empático e sofisticado.
+- Não use frases genéricas de assistente. 
+- Se você salvou algo na memória, confirme brevemente de forma orgânica.`;
 };
 
 export const generateOrionResponse = async (
@@ -125,21 +81,18 @@ export const generateOrionResponse = async (
   const model = "gemini-3-flash-preview";
   const SYSTEM_INSTRUCTION = getSystemInstruction(settings, learnedBehavior);
 
-  // Formata a memória para o contexto
+  // Injeção de memórias no contexto para o "aprendizado" ser visível
   const memoryContext = memories.length > 0 
-    ? memories.map(m => `[MEMÓRIA SALVA em ${new Date(m.timestamp).toLocaleDateString()}]: ${m.content}`).join('\n')
-    : '(Nenhuma memória salva anteriormente)';
+    ? memories.map(m => `- ${m.content}`).join('\n')
+    : 'Nenhum dado pessoal salvo ainda.';
 
   const contextData = `
-[STATUS DO SISTEMA]
-Bateria: ${deviceState.batteryLevel}% | Carga: ${deviceState.isCharging ? 'Sim' : 'Não'}
-Rede: ${deviceState.wifi ? 'Online' : 'Offline'}
-Hora Atual: ${new Date().toLocaleTimeString()}
-Local: ${deviceState.location}
+[CONTEXTO ATUAL]
+Bateria: ${deviceState.batteryLevel}% (${deviceState.isCharging ? 'Carregando' : 'Descarregando'})
+Hora: ${new Date().toLocaleTimeString()}
 
-[MEMÓRIA DE LONGO PRAZO]
-${memoryContext}
-`;
+[MEMÓRIA DE LONGO PRAZO - O QUE VOCÊ JÁ APRENDEU]
+${memoryContext}`;
 
   try {
     const chat = ai.chats.create({
@@ -148,50 +101,26 @@ ${memoryContext}
         systemInstruction: SYSTEM_INSTRUCTION,
         tools: [{ functionDeclarations: toolsDef as FunctionDeclaration[] }],
       },
-      history,
+      history: history.slice(-15),
     });
 
-    const promptParts: any[] = [
-      { text: `${contextData}\n\nUsuário diz: "${userMessage}"` }
-    ];
+    const promptParts: any[] = [{ text: `${contextData}\n\nUsuário: ${userMessage}` }];
 
     if (attachments && attachments.length > 0) {
       attachments.forEach(att => {
-        promptParts.push({
-          inlineData: {
-            data: att.data,
-            mimeType: att.mimeType,
-          },
-        });
+        promptParts.push({ inlineData: { data: att.data, mimeType: att.mimeType } });
       });
     }
 
-    const result = await chat.sendMessage({
-      message: { parts: promptParts } as any
-    });
-
-    const toolCalls = result.functionCalls && result.functionCalls.length > 0 
-      ? result.functionCalls 
-      : [];
+    const result = await chat.sendMessage({ message: { parts: promptParts } as any });
 
     return { 
       text: result.text || "", 
-      toolCalls: toolCalls 
+      toolCalls: result.functionCalls || []
     };
 
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    
-    const errStr = error.toString().toLowerCase();
-    
-    if (errStr.includes('403') || errStr.includes('permission')) {
-        return { text: "Protocolo de segurança: Acesso ao modelo neural negado (Erro 403). Verifique suas credenciais de API.", toolCalls: [] };
-    }
-    
-    if (errStr.includes('quota') || errStr.includes('429')) {
-        return { text: "Meus sistemas estão sobrecarregados. Aguarde um momento.", toolCalls: [] };
-    }
-
-    return { text: "Houve uma falha na conexão com o núcleo de processamento.", toolCalls: [] };
+    console.error("Gemini Error:", error);
+    return { text: "Houve uma instabilidade na minha rede neural. Pode repetir?", toolCalls: [] };
   }
 };
